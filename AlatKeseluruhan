@@ -1,0 +1,57 @@
+void splitStringToInt(String data, char separator, float &num1, float &num2) {
+  int separatorIndex = data.indexOf(separator);
+  if (separatorIndex != -1) { // Pastikan pemisah ditemukan
+    String part1 = data.substring(0, separatorIndex);
+    String part2 = data.substring(separatorIndex + 1);
+    num1 = part1.toFloat(); // Gunakan toFloat() untuk konversi ke float
+    num2 = part2.toFloat(); // Gunakan toFloat() untuk konversi ke float
+  } else {
+    // Jika pemisah tidak ditemukan, set nilai default
+    num1 = 0;
+    num2 = 0;
+  }
+}
+float baca_volt_aki() {
+  float R1 = 30000.0;
+  float R2 = 7500.0;
+
+  int sensorValue = analogRead(port_sensor_tegangan);
+  Serial.println("nilai : " + String(sensorValue));
+
+  float tegangan = (sensorValue * 4.8) / 1024.0 ;
+  tegangan = (tegangan / (R2 / (R1 + R2) ));
+   // Koreksi faktor penskalaan berdasarkan data percobaan
+  tegangan = tegangan * (10.0 / 15.85); // faktor koreksi
+
+  return tegangan;
+}
+
+float baca_volt_ac() {
+  float R1 = 30000.0;
+  float R2 = 7500.0;
+
+  int sensorValue = analogRead(port_sensor_tegangan);
+  Serial.println("nilai : " + String(sensorValue));
+
+  float tegangan = (sensorValue * 4.8) / 1024.0 ;
+  tegangan = (tegangan / (R2 / (R1 + R2) ));
+   // Koreksi faktor penskalaan berdasarkan data percobaan
+  tegangan = tegangan * (10.0 / 15.85); // faktor koreksi
+
+  return tegangan;
+}
+
+float baca_volt_lampu() {
+  float R1 = 30000.0;
+  float R2 = 7500.0;
+
+  int sensorValue = analogRead(port_sensor_tegangan);
+  Serial.println("nilai : " + String(sensorValue));
+
+  float tegangan = (sensorValue * 4.8) / 1024.0 ;
+  tegangan = (tegangan / (R2 / (R1 + R2) ));
+   // Koreksi faktor penskalaan berdasarkan data percobaan
+  tegangan = tegangan * (10.0 / 15.85); // faktor koreksi
+
+  return tegangan;
+}
