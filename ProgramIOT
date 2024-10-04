@@ -1,0 +1,301 @@
+String out_1 = "0";
+String out_2 = "0";
+String out_3 = "0";
+String out_4 = "0";
+String out_5 = "0";
+String out_6 = "0";
+String out_7 = "0";
+String out_8 = "0";
+String out_9 = "0";
+String out_10 = "0";
+String out_11 = "0";
+String out_12 = "0";
+String out_13 = "0";
+
+void writeStringToEEPROM(int address, const String &str) {
+  int len = str.length();
+  EEPROM.write(address, len);
+  for (int i = 0; i < len; i++) {
+    EEPROM.write(address + 1 + i, str[i]);
+  }
+}
+String readStringFromEEPROM(int address) {
+  int len = EEPROM.read(address);
+  char data[len + 1];
+  for (int i = 0; i < len; i++) {
+    data[i] = EEPROM.read(address + 1 + i);
+  }
+  data[len] = '\0';
+  return String(data);
+}
+void saveCredentialsToEEPROM() {
+  EEPROM.begin(512);
+  writeStringToEEPROM(0, nama_ssid);
+  writeStringToEEPROM(64, password);
+  writeStringToEEPROM(128, server_url);
+  writeStringToEEPROM(192, apikey);
+  EEPROM.commit();
+  debug("Konfigurasi yang disimpan ke EEPROM:");
+  debug("nama_ssid: " + nama_ssid);
+  debug("Password: " + password);
+  debug("Server URL: " + server_url);
+  debug("API Key: " + apikey);
+}
+void loadCredentialsFromEEPROM() {
+
+  EEPROM.begin(512);
+  nama_ssid = readStringFromEEPROM(0);
+  password = readStringFromEEPROM(64);
+  server_url = readStringFromEEPROM(128);
+  apikey = readStringFromEEPROM(192);
+  if (nama_ssid.length() == 0) {
+    nama_ssid = default_nama_ssid;
+    debug("SSID Default.");
+  } else {
+    debug("SSID EEPROM.");
+  }
+  if (password.length() == 0) password = default_password;
+  if (server_url.length() == 0) server_url = default_server;
+  if (apikey.length() == 0) apikey = default_apikey;
+
+  Serial.println("SSID LENGTH : " + (String)nama_ssid.length());
+  if (nama_ssid.length() > 250 || reset_default == 1) {
+    debug("NOVALID:" + nama_ssid);
+    delay(3000);
+    debug("RESET DEFAULT...");
+    nama_ssid = default_nama_ssid;
+    password = default_password;
+    server_url = default_server;
+    apikey = default_apikey;
+    saveCredentialsToEEPROM();
+    delay(1000);
+    debug("ESP RESTART...");
+    delay(1000);
+    ESP.restart();
+  } else {
+    debug("SSID :" + nama_ssid);
+    delay(1000);
+    debug("PASS :" + password);
+    delay(1000);
+    debug("URL :" + server_url);
+    delay(1000);
+    debug("API :" + apikey);
+    delay(1000);
+  }
+}
+void setupWiFi() {
+  WiFi.begin(nama_ssid.c_str(), password.c_str());
+  int attempts = 0;
+  while (WiFi.status() != WL_CONNECTED && attempts < 20) {
+
+    delay(2000);
+    debug("Connect Wi-Fi (" + (String)attempts + ")");
+    attempts++;
+  }
+  if (WiFi.status() == WL_CONNECTED) {
+    debug("Terhubung ke Wi-Fi");
+    debug("ssid: " + String(WiFi.SSID()));
+    debug("IP: " + WiFi.localIP().toString());
+    delay(1000);
+    debug("System Ready");
+    proses_iot("");
+
+  } else {
+    //lcd.clear();
+
+    debug("Gagal terhubung");
+    delay(2000);
+    debug("Beralih mode AP");
+    delay(2000);
+
+    debug("Gagal terhubung..");
+    WiFi.softAP("wifi-D1_1");
+    debug("AP: wifi-D1_1");
+    delay(5000);
+    debug("IP:" + WiFi.softAPIP().toString());
+
+    delay(2000);
+    server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
+      String nama_ssidValue = (nama_ssid.length() > 0) ? nama_ssid : default_nama_ssid;
+      String passwordValue = (password.length() > 0) ? password : default_password;
+      String serverValue = (server_url.length() > 0) ? server_url : default_server;
+      String apiKeyValue = (apikey.length() > 0) ? apikey : default_apikey;
+      String htmlContent = R"(
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>ESP32 WiFi Configuration</title>
+          <style>
+            body {
+              font-family: Arial, sans-serif;
+              margin: 20px;
+            }
+            input[type="text"],
+            input[type="password"] {
+              width: 100%;
+              padding: 10px;
+              margin: 5px 0;
+              display: inline-block;
+              border: 1px solid #ccc;
+              border-radius: 4px;
+              box-sizing: border-box;
+            }
+          
+            input[type="submit"]:hover {
+              background-color: #45a049;
+            }
+            .container {
+              padding: 20px;
+              border-radius: 5px;
+              background-color: #f2f2f2;
+            }
+          </style>
+        </head>
+        <body>
+          <div style="max-width: 600px; margin: 20px auto; padding: 20px; border: 1px solid #ccc; border-radius: 5px; background-color: #f9f9f9;">
+            <div class="container">
+              <h2>ESP WiFi Configuration</h2>
+              <form action="/save" method="post">
+                <label for="nama_ssid">WiFi SSID:</label>
+                <input type="text" id="nama_ssid" name="nama_ssid" value=")"
+                           + nama_ssidValue + R"(" required><br>
+                <label for="password">WiFi Password:</label>
+                <input type="text" id="password" name="password" value=")"
+                           + passwordValue + R"(" required><br>
+                <label for="server">Server URL:</label>
+                <input type="text" id="server" name="server" value=")"
+                           + serverValue + R"(" required><br>
+                <label for="apikey">API Key:</label>
+                <input type="text" id="apikey" name="apikey" value=")"
+                           + apiKeyValue + R"(" required><br>
+               <input  style=" width: 100%;color: #fff; background-color: green; padding: 10px 20px; text-decoration: none; border-radius: 4px;" type="submit" value="SAVE CONFIGURATION">
+              </form>
+              <br>
+              <br>
+              Kembali Ke pengaturan Awal :
+             <a href="/reset" style="color: #fff; background-color: red; padding: 10px 20px; text-decoration: none; border-radius: 4px;">RESET DEFAULT</a>
+            </div>
+          </div>
+        </body>
+        </html>
+      )";
+      request->send(200, "text/html", htmlContent);
+    });
+    server.on("/save", HTTP_POST, [](AsyncWebServerRequest *request) {
+      if (request->args() > 0) {  // Pastikan ada argumen yang disampaikan
+        for (uint8_t i = 0; i < request->args(); i++) {
+          if (request->argName(i) == "nama_ssid") {
+            nama_ssid = request->arg(i);
+          } else if (request->argName(i) == "password") {
+            password = request->arg(i);
+          } else if (request->argName(i) == "server") {
+            server_url = request->arg(i);
+          } else if (request->argName(i) == "apikey") {
+            apikey = request->arg(i);
+          }
+        }
+        saveCredentialsToEEPROM();  // Simpan konfigurasi ke EEPROM
+        request->send(200, "text/html", R"(
+          <div style="max-width: 600px; margin: 20px auto; padding: 20px; border: 1px solid #ccc; border-radius: 5px; background-color: #f9f9f9;">
+            <h2 style="color: #4CAF50;">Konfigurasi Berhasil Disimpan</h2>
+            <p><br>Klik tombol dibawah ini untuk restart esp <br><br><br><a href="/restart" style="color: #fff; background-color: #4CAF50; padding: 10px 20px; text-decoration: none; border-radius: 4px;">RESTART ESP</a></p>
+          </div>
+        </body>
+        )");
+      } else {
+        request->send(400, "text/html", "Bad Request: Tidak ada data yang disampaikan.");
+      }
+    });
+    server.on("/reset", HTTP_GET, [](AsyncWebServerRequest *request) {
+      nama_ssid = default_nama_ssid;
+      password = default_password;
+      server_url = default_server;
+      apikey = default_apikey;
+      saveCredentialsToEEPROM();
+      request->send(200, "text/html", R"(
+          <div style="max-width: 600px; margin: 20px auto; padding: 20px; border: 1px solid #ccc; border-radius: 5px; background-color: #f9f9f9;">
+            <h2 style="color: RED;">Konfigurasi Berhasil Di Reset</h2>
+            <p><br>Klik tombol dibawah ini untuk restart esp <br><br><br><a href="/restart" style="color: #fff; background-color: red; padding: 10px 20px; text-decoration: none; border-radius: 4px;">RESTART ESP</a></p>
+          </div>
+        )");
+    });
+    server.on("/restart", HTTP_GET, [](AsyncWebServerRequest *request) {
+      request->send(200, "text/html", R"(
+        <head>
+  <meta http-equiv="refresh" content="5;url=/">
+</head>
+<body>
+  <div style="max-width: 600px; margin: 20px auto; padding: 20px; border: 1px solid #ccc; border-radius: 5px; background-color: #f9f9f9;">   
+    <p><br>ESP Restart... <br><br></p>
+  </div>
+</body>
+        )");
+
+      delay(1000);    // Tambahkan jeda sebelum merestart
+      ESP.restart();  // Restart ESP
+      request->redirect("/");
+    });
+  }
+  server.begin();
+}
+
+void proses_iot(String nilai) {
+  if (WiFi.status() != WL_CONNECTED) return;
+
+  WiFiClient client;
+  HTTPClient http;
+  String url = server_url + apikey + nilai;  // Menggunakan server_url
+  url.replace(" ", "%20");
+  Serial.println("Request URL: " + url);
+  http.begin(client, url);
+  int httpResponseCode = http.GET();
+  if (httpResponseCode == HTTP_CODE_OK) {
+    const size_t capacity = JSON_OBJECT_SIZE(1024);
+    DynamicJsonDocument jsonDoc(capacity);
+    String jsonResponse = http.getString();
+    DeserializationError error = deserializeJson(jsonDoc, jsonResponse);
+    if (error) {
+      Serial.println("Error parsing JSON: " + String(error.c_str()));
+      return;
+    }
+    for (int i = 1; i <= 15; i++) {
+      String out = jsonDoc["out_" + String(i)].as<String>();
+      Serial.println("out_" + String(i) + ": " + out);
+    }
+    kondisi_mobil = jsonDoc["out_13"].as<String>();
+
+    if (kondisi_mobil == "mati") {
+      aki_normal = jsonDoc["out_1"].as<String>();
+      aki_k_sehat = jsonDoc["out_2"].as<String>();
+      aki_h_diganti = jsonDoc["out_3"].as<String>();
+      Serial.println("kondisi mati .. ");
+      
+    } else if (kondisi_mobil == "starter") {
+      aki_normal = jsonDoc["out_4"].as<String>();
+      aki_k_sehat = jsonDoc["out_5"].as<String>();
+      aki_h_diganti = jsonDoc["out_6"].as<String>();
+      Serial.println("kondisi starter .. ");
+
+    } else if (kondisi_mobil == "beban") {
+      aki_normal = jsonDoc["out_7"].as<String>();
+      aki_k_sehat = jsonDoc["out_8"].as<String>();
+      aki_h_diganti = jsonDoc["out_9"].as<String>();
+      Serial.println("kondisi beban .. ");
+
+    } else if (kondisi_mobil == "berjalan") {
+      aki_normal = jsonDoc["out_10"].as<String>();
+      aki_k_sehat = jsonDoc["out_11"].as<String>();
+      aki_h_diganti = jsonDoc["out_12"].as<String>();
+      Serial.println("kondisi berjalan .. ");
+    }
+
+    char separator = '-';
+    splitStringToInt(aki_normal, separator, b_bawah_aki_normal, b_atas_aki_normal);
+    splitStringToInt(aki_k_sehat, separator, b_bawah_aki_kurang_sehat, b_atas_aki_kurang_sehat);
+    splitStringToInt(aki_h_diganti, separator, b_bawah_aki_harus_diganti, b_atas_aki_harus_diganti);
+
+  } else {
+    Serial.println("Error Code: " + String(httpResponseCode));
+  }
+  http.end();
+}
