@@ -1,0 +1,31 @@
+const int sensorPin = A0; 
+const float voltageRef = 5.0; 
+const int numSamples = 20; 
+float sensorVoltages[numSamples]; 
+float multimeterVoltages[numSamples] = { /* Isi dengan data dari multimeter */ };
+
+void setup() {
+  Serial.begin(9600); 
+}
+
+void loop() {
+  for (int i = 0; i < numSamples; i++) {
+    
+    int rawValue = analogRead(sensorPin);
+    
+    float voltage = (rawValue / 1023.0) * voltageRef;
+    sensorVoltages[i] = voltage;
+
+    Serial.print("Data ke-");
+    Serial.print(i + 1);
+    Serial.print(": Sensor Tegangan = ");
+    Serial.print(voltage);
+    Serial.print(" V, Multimeter Tegangan = ");
+    Serial.print(multimeterVoltages[i]); //
+    Serial.println(" V");
+
+    delay(1000); 
+  }
+
+  while (true);
+}
