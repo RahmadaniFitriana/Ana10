@@ -1,4 +1,3 @@
-// Definisikan pin untuk sensor arus
 const int sensorPin = A0; 
 const float voltageRef = 5.0; 
 const float sensitivity = 0.185; 
@@ -8,39 +7,12 @@ void setup() {
 }
 
 void loop() {
-  // Baca nilai analog dari sensor
   int rawValue = analogRead(sensorPin);
-  
-  // Menghitung tegangan
   float voltage = (rawValue / 1023.0) * voltageRef;
-
-  // Menghitung arus (A)
   float current = (voltage - (voltageRef / 2)) / sensitivity;
 
-  // Tampilkan hasil ke Serial Monitor
   Serial.print("Arus (A): ");
   Serial.println(current, 3); 
 
   delay(1000); 
-}
-
-B.2 Program Karakterisasi Sensor WCS1700 dengan Alat Pembanding
-const int sensorPin = A0;  
-const float sensitivity = 66.0;  
-const float voltageRef = 5.0;  
-
-void setup() {
-  Serial.begin(9600);  
-}
-
-void loop() {
-  int sensorValue = analogRead(sensorPin);  
-  float voltage = (sensorValue / 1023.0) * voltageRef;  
-  float current = (voltage - (voltageRef / 2)) / (sensitivity / 1000);  
-
-  Serial.print("Arus yang terukur: ");
-  Serial.print(current);
-  Serial.println(" A");
-
-  delay(1000);  
 }
