@@ -1,0 +1,93 @@
+#include <Arduino.h>
+
+#include <ArduinoJson.h>
+#include <EEPROM.h>
+#ifdef ESP32
+#include <WiFi.h>
+#include <HTTPClient.h>
+#include <AsyncTCP.h>
+#elif defined(ESP8266)
+#include <ESP8266WiFi.h>
+#include <ESP8266HTTPClient.h>
+#include <ESPAsyncTCP.h>
+#endif
+#include <ESPAsyncWebServer.h>
+
+extern const char* default_nama_ssid = "wifi-iot";
+extern const char* default_password = "password-iot";
+extern const char* default_server = "http://labrobotika.go-web.my.id/server.php?apikey=";
+extern const char* default_apikey = "47aeaac7a1e34875b25378645f603afe";
+String nama_ssid;
+String password;
+String server_url;
+String apikey;
+AsyncWebServer server(80);
+int reset_default = 0;
+int port_sensor_tegangan = A0;
+int looping_iot = 1;
+
+float sensor_tegangan = 0;
+float sensor_tegangan_ac = 0;
+float sensor_tegangan_lampu = 0;
+String kategori = "";
+String kondisi_mobil = "";
+
+String aki_normal = "0";
+String aki_k_sehat = "0";
+String aki_h_diganti = "0";
+
+float b_bawah_aki_normal = 0;
+float b_atas_aki_normal = 0;
+float b_bawah_aki_kurang_sehat = 0;
+float b_atas_aki_kurang_sehat = 0;
+float b_bawah_aki_harus_diganti = 0;
+float b_atas_aki_harus_diganti = 0;
+
+void debug(String message) {
+  Serial.println(message);
+}
+void setup() {
+  Serial.begin(9600);
+  EEPROM.begin(512);
+  //BERI NILAI 1 JIKA MAU DIRESET (PERTAMA UPLOAD WAJIB RESET)
+  reset_default = 0;
+  loadCredentialsFromEEPROM();
+  setupWiFi();
+  pinMode(port_sensor_tegangan, INPUT);
+}
+
+float rata_rata = 0;
+
+void loop() {
+  sensor_tegangan = baca_volt_aki();
+  sensor_tegangan_ac = baca_volt_ac();
+  sensor_tegangan_lampu = baca_volt_lampu();
+  Serial.println("Tegangan : " + (String)sensor_tegangan);
+  rata_rata += sensor_tegangan ;
+
+  if (looping_iot >= 20) {
+
+    if (sensor_tegangan >= b_bawah_aki_normal && sensor_tegangan <=  b_atas_aki_normal){
+      kategori = "AKI NORMAL";
+    }
+    else if (sensor_tegangan >= b_bawah_aki_kurang_sehat && sensor_tegangan <=  b_atas_aki_kurang_sehat){
+      kategori = "AKI KURANG SEHAT";
+    }
+    else if (sensor_tegangan >= b_bawah_aki_harus_diganti && sensor_tegangan <=  b_atas_aki_harus_diganti){
+      kategori = "AKI HARUS DIGANTI";
+    }
+    else {
+      kategori = "TIDAK DIKETAHUI";
+    }
+    rata_rata = rata_rata/20.0;
+    proses_iot("&tegangan="+String(rata_rata) + "&kondisi_aki=" + kategori);
+    looping_iot = 1;
+    rata_rata = 0;
+
+  } else {
+    looping_iot = looping_iot + 1;
+    Serial.println("Looping IOT : " + (String)looping_iot);
+  }
+  delay(500);
+
+}
