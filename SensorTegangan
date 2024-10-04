@@ -1,0 +1,34 @@
+const int analogPin = A0; 
+const float referenceVoltage = 5.0; 
+float calibrationFactor = 5.0; 
+
+void setup() {
+    Serial.begin(9600); 
+}
+
+void loop() {
+
+    int sensorValue = analogRead(analogPin);
+    
+    float voltage = (sensorValue / 1023.0) * referenceVoltage * calibrationFactor;
+
+    Serial.print("Nilai Sensor: ");
+    Serial.print(sensorValue);
+    Serial.print("\tTegangan: ");
+    Serial.print(voltage);
+    Serial.println(" V");
+    
+    delay(1000); 
+}
+
+// Fungsi untuk kalibrasi
+void calibrate(float actualVoltage) {
+   
+    int sensorValue = analogRead(analogPin);
+    float measuredVoltage = (sensorValue / 1023.0) * referenceVoltage;
+    
+   
+    calibrationFactor = actualVoltage / measuredVoltage;
+    Serial.print("Faktor Kalibrasi: ");
+    Serial.println(calibrationFactor);
+}
